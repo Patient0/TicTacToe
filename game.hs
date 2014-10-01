@@ -58,7 +58,7 @@ row r = [(r,c) | c <- [1..cols]]
 col c = [(r,c) | r <- [1..rows]]
 diag1 = [(r,r) | r <- [1..rows]]
 diag2 = [(r,rows+1-r) | r <- [1..rows]]
-winningLines = [row r | r <- [1..rows]] ++ [col c | c <- [1..cols]] ++ [diag1, diag2]
+winningLines = [f r | r <- [1..rows], f <- [row, col]] ++ [diag1, diag2]
 
 same :: (Eq a) => [a] -> Maybe a
 same (x:xs)
