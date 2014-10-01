@@ -60,11 +60,6 @@ diag1 = [(r,r) | r <- [1..rows]]
 diag2 = [(r,rows+1-r) | r <- [1..rows]]
 winningLines = [f r | r <- [1..rows], f <- [row, col]] ++ [diag1, diag2]
 
-same :: (Eq a) => [a] -> Maybe a
-same (x:xs)
-    | all (x ==) xs = Just x
-same _ = Nothing
-
 isWinningLine :: Board -> Line -> Bool
 isWinningLine b l = 
         all (== lastMove b) $ map (charAt b) l
