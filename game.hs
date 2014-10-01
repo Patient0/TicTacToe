@@ -74,6 +74,11 @@ readAndApply b =
         nextMove <- getLine
         return $ move (read nextMove) b
 
+allsquares = [(x,y) | x <- [1..rows], y <- [1..cols]]
+
+free :: Board -> [Square]
+free b = [s | s <- allsquares, ' ' == charAt b s]
+
 gameLoop :: Board -> IO Board
 gameLoop b | hasWinner b = return b
 gameLoop b = do
