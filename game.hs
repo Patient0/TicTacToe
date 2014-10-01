@@ -53,6 +53,9 @@ unfinished = applyMoves empty [(1,3), (3,3), (2,2), (1,1)]
 xwin = applyMoves unfinished [(3,2), (2,3), (3,1)]
 owin = applyMoves unfinished [(3,1), (3,2)]
 
+nearlywon = move (2,3) unfinished
+odoomed = move (3,1) unfinished
+
 type Line = [Square]
 row r = [(r,c) | c <- [1..cols]]
 col c = [(r,c) | r <- [1..rows]]
@@ -66,7 +69,7 @@ isWinningLine b l =
 
 hasWinner :: Board -> Bool
 hasWinner b = any (isWinningLine b) winningLines
-
+            
 readAndApply :: Board -> IO Board
 readAndApply b =
     do
@@ -78,6 +81,36 @@ allsquares = [(x,y) | x <- [1..rows], y <- [1..cols]]
 
 free :: Board -> [Square]
 free b = [s | s <- allsquares, ' ' == charAt b s]
+
+-- If no moves left, or it has a winner
+-- we need to truncate
+boards :: Board -> [Board]
+boards b 
+    | hasWinner b = [b]
+    | null (free b) = [b]
+    | otherwise = [move m b | m <- free b]
+
+-- the list of boards looking 2 moves ahead
+-- TODO: work out alpha/beta pruning
+ply :: Board -> [Board]
+ply b = do
+            ourMove <- boards b
+            theirMove <- boards ourMove
+            return theirMove
+
+allgames :: Board -> [Board]
+allgames b = 
+    if null squares
+        then return b
+        else do
+            s <- squares
+            allgames (move s b)
+    where squares = free b
+
+bestMove :: Board -> Square
+bestMove b = let moves = free b
+                 winning = [s | s <- moves, hasWinner (move s b)] in
+                 head $ winning ++ moves
 
 gameLoop :: Board -> IO Board
 gameLoop b | hasWinner b = return b
