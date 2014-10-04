@@ -27,24 +27,21 @@ move :: Square -> Board -> Board
 move s (Board ps n) = Board ((s,n):ps) (flipxo n)
 
 charAt :: Board -> Square -> Char
-charAt b s =
-    case lookup s (placements b) of
-        Just c -> c
-        Nothing -> ' '
+charAt b s = fromMaybe ' ' $ lookup s $ placements b
 
 bar :: String
-bar = " +" ++ (replicate cols '-') ++ "+"
+bar = " +" ++ replicate cols '-' ++ "+"
 topLine :: Board -> String
-topLine b = [nextToMove b] ++ " " ++ (concat $ map show [1..cols])
+topLine b = [nextToMove b] ++ " " ++ concatMap show [1..cols]
 
 boardLines :: Board -> [String]
 boardLines b = [topLine b, bar] ++
-    (map buildRow [1..rows]) ++
+    map buildRow [1..rows] ++
     [bar]
-    where buildRow r = (show r) ++ "|" ++ [charAt b (r,c) | c <- [1..cols]] ++ "|"
+    where buildRow r = show r ++ "|" ++ [charAt b (r,c) | c <- [1..cols]] ++ "|"
 
 instance Show Board where
-    show b = concat $ map (++ "\n") $ boardLines b
+    show b = concatMap (++ "\n") $ boardLines b
 
 applyMoves :: Board -> [Square] -> Board
 applyMoves = foldr move
@@ -108,20 +105,21 @@ bestMove b = let (m:ms) = moves b in
 
 validate :: Board -> Square -> IO Square
 validate b s
-    | any (== s) (free b) = return s
+    | elem s (free b) = return s
     | otherwise = getNextMove b
 
 getNextMove :: Board -> IO Square
 getNextMove b
     | nextToMove b == 'O' = return $ bestMove b
     | otherwise = do
+        putStrLn "Enter move - e.g. (2,3)"
         nextMove <- getLine
         validate b $ read nextMove
 
 readAndApply :: Board -> IO Board
 readAndApply b =
     do
-        putStrLn $ show b
+        print b
         nextMove <- getNextMove b
         return $ move nextMove b
 
@@ -136,4 +134,4 @@ main :: IO ()
 main = do
         putStrLn "Tic Tac Toe!!!"
         winningBoard <- gameLoop empty
-        putStrLn $ (show winningBoard) ++ "\nEnd of game"
+        putStrLn $ show winningBoard ++ "\nEnd of game"
