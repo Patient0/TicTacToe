@@ -71,18 +71,14 @@ isWinningLine b l =
 
 hasWinner :: Board -> Bool
 hasWinner b = any (isWinningLine b) winningLines
-            
-readAndApply :: Board -> IO Board
-readAndApply b =
-    do
-        putStrLn $ show b
-        nextMove <- getLine
-        return $ move (read nextMove) b
 
 allsquares = [(x,y) | x <- [1..rows], y <- [1..cols]]
 
 free :: Board -> [Square]
 free b = [s | s <- allsquares, ' ' == charAt b s]
+
+scoreForMove :: Board -> Square -> Int
+scoreForMove b m = score $ move m b
 
 score :: Board -> Int
 score b
@@ -93,34 +89,45 @@ score b
     -- Pick the minimum of these - that's the move we would make.
     -- Our score is the negative of their
     -- score because it's a zero sum game
-    | otherwise = case [score $ move m b | m <- free b] of
+    | otherwise = case [scoreForMove b m | m <- free b] of
         [] -> 0 -- no moves left, no winner. Draw.
         (s:ss) -> -(foldr min s ss)
 
--- If no moves left, or it has a winner
--- we need to truncate
-boards :: Board -> [Board]
-boards b 
-    | hasWinner b = [b]
-    | null (free b) = [b]
-    | otherwise = [move m b | m <- free b]
+-- Get available moves and their associated score
+moves :: Board -> [(Square, Int)]
+moves b = [(m, scoreForMove b m) | m <- free b]
 
-allgames :: Board -> [Board]
-allgames b = 
-    if null squares
-        then return b
-        else do
-            s <- squares
-            allgames (move s b)
-    where squares = free b
-
+-- choose the move that minimizes the opponents
+-- score
 bestMove :: Board -> Square
-bestMove b = let moves = free b
-                 winning = [s | s <- moves, hasWinner (move s b)] in
-                 head $ winning ++ moves
+bestMove b = let (m:ms) = moves b in
+                fst $ foldr best m ms
+                where best m1@(p1,s1) m2@(p2,s2)
+                        | s1 > s2 = m2
+                        | otherwise = m1
+
+validate :: Board -> Square -> IO Square
+validate b s
+    | any (== s) (free b) = return s
+    | otherwise = getNextMove b
+
+getNextMove :: Board -> IO Square
+getNextMove b
+    | nextToMove b == 'O' = return $ bestMove b
+    | otherwise = do
+        nextMove <- getLine
+        validate b $ read nextMove
+
+readAndApply :: Board -> IO Board
+readAndApply b =
+    do
+        putStrLn $ show b
+        nextMove <- getNextMove b
+        return $ move nextMove b
 
 gameLoop :: Board -> IO Board
 gameLoop b | hasWinner b = return b
+gameLoop b | null $ free b = return b
 gameLoop b = do
     nextMove <- readAndApply b
     gameLoop nextMove
