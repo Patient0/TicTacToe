@@ -41,7 +41,7 @@ boardLines b = [topLine b, bar] ++
     where buildRow r = show r ++ "|" ++ [charAt b (r,c) | c <- [1..cols]] ++ "|"
 
 instance Show Board where
-    show b = concatMap (++ "\n") $ boardLines b
+    show b = unlines $ boardLines b
 
 applyMoves :: Board -> [Square] -> Board
 applyMoves = foldr move
@@ -105,7 +105,7 @@ bestMove b = let (m:ms) = moves b in
 
 validate :: Board -> Square -> IO Square
 validate b s
-    | elem s (free b) = return s
+    | s `elem` (free b) = return s
     | otherwise = getNextMove b
 
 getNextMove :: Board -> IO Square
