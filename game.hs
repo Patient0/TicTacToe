@@ -1,6 +1,7 @@
 module Game where
 import Data.List
 import Data.Maybe
+import Control.Monad.State
 type Square = (Int, Int)
 type Squares = [Square]
 type Placement = (Square, Char)
@@ -71,24 +72,41 @@ hasWinner b = any (isWinningLine b) winningLines
 
 allsquares = [(x,y) | x <- [1..rows], y <- [1..cols]]
 
+-- Get the free squares on this board
 free :: Board -> [Square]
 free b = [s | s <- allsquares, ' ' == charAt b s]
 
 scoreForMove :: Board -> Square -> Int
 scoreForMove b m = score $ move m b
 
+-- This is the main logic for the AI.
+-- Minimax algorithm.
+-- For each of the moves we can make, what
+-- score would our opponent achieve?
+-- Pick the minimum of these - that's the move we would make.
+-- Our score is the negative of their
+-- score because it's a zero sum game
 score :: Board -> Int
 score b
     -- The other guy has already won. We've lost.
     | hasWinner b = -1
-    -- For each of the moves we can make, what is
-    -- the maximum score our opponent can achieve?
-    -- Pick the minimum of these - that's the move we would make.
-    -- Our score is the negative of their
-    -- score because it's a zero sum game
     | otherwise = case [scoreForMove b m | m <- free b] of
         [] -> 0 -- no moves left, no winner. Draw.
-        (s:ss) -> -(foldr min s ss)
+        (s:ss) -> -foldr min s ss
+
+type ScoreState = State Int
+
+scoreForMoveM :: Board -> Square -> ScoreState Int
+scoreForMoveM b m = scoreM $ move m b
+
+scoreM :: Board -> ScoreState Int
+scoreM b
+    | hasWinner b = return $ -1
+    | otherwise = do
+        scores <- sequence [scoreForMoveM b m | m <- free b]
+        case scores of
+            [] -> return 0 -- no moves left, no winner. Draw
+            (s:ss) -> return $ -foldr min s ss
 
 -- Get available moves and their associated score
 moves :: Board -> [(Square, Int)]
@@ -105,7 +123,7 @@ bestMove b = let (m:ms) = moves b in
 
 validate :: Board -> Square -> IO Square
 validate b s
-    | s `elem` (free b) = return s
+    | s `elem` free b = return s
     | otherwise = getNextMove b
 
 getNextMove :: Board -> IO Square
