@@ -94,7 +94,11 @@ score b
         [] -> 0 -- no moves left, no winner. Draw.
         (s:ss) -> -foldr min s ss
 
-type ScoreState = State Int
+type BoardCache = Map.Map String Int
+type ScoreState = State BoardCache
+
+boardKey :: Board -> String
+boardKey b = [charAt b (r,c) | r <- [1..rows], c <- [1..cols]]
 
 scoreForMoveM :: Board -> Square -> ScoreState Int
 scoreForMoveM b m = checkScoreM $ move m b
@@ -110,9 +114,14 @@ scoreM b
 
 checkScoreM :: Board -> ScoreState Int
 checkScoreM b = do
-    current <- get
-    put $ current + 1
-    scoreM b
+    cache <- get
+    case Map.lookup key cache of
+        Just s -> return s -- seen it before
+        Nothing -> do
+                   s <- scoreM b
+                   put (Map.insert key s cache)
+                   return s
+    where key = boardKey b
 
 -- Get available moves and their associated score
 moves :: Board -> [(Square, Int)]
@@ -127,11 +136,12 @@ movesM b = sequence [sm s | s <- free b]
 -- choose the move that minimizes the opponents
 -- score
 bestMove :: Board -> Square
-bestMove b = let (m:ms) = moves b in
+{-bestMove b = let (m:ms) = moves b in
                 fst $ foldr best m ms
                 where best m1@(p1,s1) m2@(p2,s2)
                         | s1 > s2 = m2
                         | otherwise = m1
+-}
 
 bestMoveM :: Board -> ScoreState Square
 bestMoveM b = do
@@ -141,8 +151,8 @@ bestMoveM b = do
                         | s1 > s2 = m2
                         | otherwise = m1
 
--- bestMoveI :: Board -> (Square, Int)
-bestMoveI b = runState (bestMoveM b) 0
+bestMoveS b = runState (bestMoveM b) Map.empty
+bestMove = fst . bestMoveS
 
 validate :: Board -> Square -> IO Square
 validate b s
