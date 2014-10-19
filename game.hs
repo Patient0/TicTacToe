@@ -1,6 +1,6 @@
 module Game where
-import Data.List
 import Data.Maybe
+import qualified Data.Map as Map
 import Control.Monad.State
 type Square = (Int, Int)
 type Squares = [Square]
@@ -97,7 +97,7 @@ score b
 type ScoreState = State Int
 
 scoreForMoveM :: Board -> Square -> ScoreState Int
-scoreForMoveM b m = scoreM $ move m b
+scoreForMoveM b m = checkScoreM $ move m b
 
 scoreM :: Board -> ScoreState Int
 scoreM b
@@ -108,9 +108,21 @@ scoreM b
             [] -> return 0 -- no moves left, no winner. Draw
             (s:ss) -> return $ -foldr min s ss
 
+checkScoreM :: Board -> ScoreState Int
+checkScoreM b = do
+    current <- get
+    put $ current + 1
+    scoreM b
+
 -- Get available moves and their associated score
 moves :: Board -> [(Square, Int)]
 moves b = [(m, scoreForMove b m) | m <- free b]
+
+movesM :: Board -> ScoreState [(Square, Int)]
+movesM b = sequence [sm s | s <- free b]
+    where sm s = do
+            score <- scoreForMoveM b s
+            return (s, score)
 
 -- choose the move that minimizes the opponents
 -- score
@@ -120,6 +132,17 @@ bestMove b = let (m:ms) = moves b in
                 where best m1@(p1,s1) m2@(p2,s2)
                         | s1 > s2 = m2
                         | otherwise = m1
+
+bestMoveM :: Board -> ScoreState Square
+bestMoveM b = do
+    (m:ms) <- movesM b
+    return $ fst $ foldr best m ms
+                where best m1@(p1,s1) m2@(p2,s2)
+                        | s1 > s2 = m2
+                        | otherwise = m1
+
+-- bestMoveI :: Board -> (Square, Int)
+bestMoveI b = runState (bestMoveM b) 0
 
 validate :: Board -> Square -> IO Square
 validate b s
