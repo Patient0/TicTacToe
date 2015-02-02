@@ -119,9 +119,15 @@ checkScoreM b = do
         Just s -> return s -- seen it before
         Nothing -> do
                    s <- scoreM b
+                   -- It's important to re-fetch the cache here to get 
+                   -- the entries added by the recursive call to scoreM
+                   cache <- get
                    put (Map.insert key s cache)
                    return s
     where key = boardKey b
+
+checkScoreS :: Board -> (Int, BoardCache)
+checkScoreS b = runState (checkScoreM b) Map.empty
 
 -- Get available moves and their associated score
 moves :: Board -> [(Square, Int)]
@@ -133,16 +139,9 @@ movesM b = sequence [sm s | s <- free b]
             score <- scoreForMoveM b s
             return (s, score)
 
+
 -- choose the move that minimizes the opponents
 -- score
-bestMove :: Board -> Square
-{-bestMove b = let (m:ms) = moves b in
-                fst $ foldr best m ms
-                where best m1@(p1,s1) m2@(p2,s2)
-                        | s1 > s2 = m2
-                        | otherwise = m1
--}
-
 bestMoveM :: Board -> ScoreState Square
 bestMoveM b = do
     (m:ms) <- movesM b
@@ -152,6 +151,7 @@ bestMoveM b = do
                         | otherwise = m1
 
 bestMoveS b = runState (bestMoveM b) Map.empty
+bestMove :: Board -> Square
 bestMove = fst . bestMoveS
 
 validate :: Board -> Square -> IO Square
