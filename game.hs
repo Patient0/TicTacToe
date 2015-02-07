@@ -152,39 +152,39 @@ bestMoveM b = do
                         | s1 > s2 = m2
                         | otherwise = m1
 
-bestMoveS b = runState (bestMoveM b) Map.empty
-bestMove :: Board -> Square
-bestMove = fst . bestMoveS
+bestMove bc b = runState (bestMoveM b) bc
 
-validate :: Board -> Square -> IO Square
-validate b s
-    | s `elem` free b = return s
-    | otherwise = getNextMove b
+validate :: BoardCache -> Board -> Square -> IO (Square, BoardCache)
+validate bc b s
+    | s `elem` free b = return (s, bc)
+    | otherwise = getNextMove bc b
 
-getNextMove :: Board -> IO Square
-getNextMove b
-    | nextToMove b == 'O' = return $ bestMove b
+getNextMove :: BoardCache -> Board -> IO (Square, BoardCache)
+getNextMove bc b
+    | nextToMove b == 'O' = return $ (s, bc')
     | otherwise = do
         putStrLn "Enter move - e.g. (2,3)"
         nextMove <- getLine
-        validate b $ read nextMove
+        validate bc b $ read nextMove
+    where (s,bc') = bestMove bc b
 
-readAndApply :: Board -> IO Board
-readAndApply b =
+readAndApply :: BoardCache -> Board -> IO (Board, BoardCache)
+readAndApply bc b =
     do
         print b
-        nextMove <- getNextMove b
-        return $ move nextMove b
+        (nextMove, bc') <- getNextMove bc b
+        return $ (move nextMove b, bc')
 
-gameLoop :: Board -> IO Board
-gameLoop b | hasWinner b = return b
-gameLoop b | null $ free b = return b
-gameLoop b = do
-    nextMove <- readAndApply b
-    gameLoop nextMove
+gameLoop :: BoardCache -> Board -> IO (Board, BoardCache)
+gameLoop bc b | hasWinner b = return (b, bc)
+gameLoop bc b | null $ free b = return (b, bc)
+gameLoop bc b = do
+    (nextMove, bc') <- readAndApply bc b
+    gameLoop bc' nextMove
 
 main :: IO ()
 main = do
         putStrLn "Tic Tac Toe!!!"
-        winningBoard <- gameLoop empty
+        (winningBoard, bc) <- gameLoop Map.empty empty
         putStrLn $ show winningBoard ++ "\nEnd of game"
+        putStrLn $ show (Map.size bc) ++ " entries in cache"
