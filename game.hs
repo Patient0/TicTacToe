@@ -112,6 +112,12 @@ scoreM b
             [] -> return 0 -- no moves left, no winner. Draw
             (s:ss) -> return $ -foldr min s ss
 
+updateCache :: String -> Int -> ScoreState Int
+updateCache key s = do
+    cache <- get
+    put (Map.insert key s cache)
+    return s
+
 checkScoreM :: Board -> ScoreState Int
 checkScoreM b = do
     cache <- get
@@ -119,11 +125,7 @@ checkScoreM b = do
         Just s -> return s -- seen it before
         Nothing -> do
                    s <- scoreM b
-                   -- It's important to re-fetch the cache here to get 
-                   -- the entries added by the recursive call to scoreM
-                   cache <- get
-                   put (Map.insert key s cache)
-                   return s
+                   updateCache key s
     where key = boardKey b
 
 checkScoreS :: Board -> (Int, BoardCache)
